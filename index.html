@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KaplanReCreations - Game Collection</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+    min-height: 100vh;
+    color: #fff;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.header {
+    text-align: center;
+    padding: 40px 20px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 20px;
+    margin-bottom: 40px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.header h1 {
+    font-size: 3.5em;
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.header p {
+    font-size: 1.3em;
+    color: #ddd;
+}
+
+.category {
+    margin-bottom: 50px;
+}
+
+.category-title {
+    font-size: 2.2em;
+    margin-bottom: 25px;
+    padding: 15px 25px;
+    background: rgba(255,255,255,0.1);
+    border-left: 5px solid #f5576c;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+.games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.game-card {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 15px;
+    padding: 25px;
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+}
+
+.game-card:hover {
+    transform: translateY(-8px);
+    background: rgba(255,255,255,0.15);
+    border-color: #f5576c;
+    box-shadow: 0 15px 40px rgba(245, 87, 108, 0.3);
+}
+
+.game-icon {
+    font-size: 3.5em;
+    margin-bottom: 15px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+}
+
+.game-title {
+    font-size: 1.4em;
+    font-weight: bold;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.game-description {
+    font-size: 0.9em;
+    color: #bbb;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.game-tags {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.tag {
+    background: rgba(245, 87, 108, 0.3);
+    border: 1px solid #f5576c;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.75em;
+    color: #fff;
+}
+
+.search-box {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.search-box input {
+    width: 100%;
+    max-width: 500px;
+    padding: 15px 25px;
+    font-size: 1.1em;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 50px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #f5576c;
+    background: rgba(255,255,255,0.15);
+}
+
+.search-box input::placeholder {
+    color: #aaa;
+}
+
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 2.2em;
+    }
+    
+    .category-title {
+        font-size: 1.6em;
+    }
+    
+    .games-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 KaplanReCreations 🎮</h1>
+            <p>Classic Arcade & Card Game Collection</p>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 Search for a game..." onkeyup="filterGames()">
+        </div>
+
+        <!-- ARCADE CLASSICS -->
+        <div class="category">
+            <h2 class="category-title">🕹️ Arcade Classics</h2>
+            <div class="games-grid">
+                <a href="pacman/index.html" class="game-card">
+                    <div class="game-icon">👻</div>
+                    <div class="game-title">Pac-Man</div>
+                    <div class="game-description">Chomp pellets and avoid ghosts!</div>
+                    <div class="game-tags">
+                        <span class="tag">Arcade</span>
+                    </div>
+                </a>
+
+                <a href="mspacman/index.html" class="game-card">
+                    <div class="game-icon">🎀</div>
+                    <div class="game-title">Ms. Pac-Man</div>
+                    <div class="game-description">The classic with a bow!</div>
+                    <div class="game-tags">
+                        <span class="tag">Arcade</span>
+                    </div>
+                </a>
+
+                <a href="SuperMario/index.html" class="game-card">
+                    <div class="game-icon">🍄</div>
+                    <div class="game-title">Super Mario</div>
+                    <div class="game-description">Jump, run, and save the princess!</div>
+                    <div class="game-tags">
+                        <span class="tag">Platformer</span>
+                    </div>
+                </a>
+
+                <a href="galaga/index.html" class="game-card">
+                    <div class="game-icon">🚀</div>
+                    <div class="game-title">Galaga</div>
+                    <div class="game-description">Space shooter classic!</div>
+                    <div class="game-tags">
+                        <span class="tag">Shooter</span>
+                    </div>
+                </a>
+
+                <a href="astroids/index.html" class="game-card">
+                    <div class="game-icon">☄️</div>
+                    <div class="game-title">Asteroids</div>
+                    <div class="game-description">Blast space rocks to survive!</div>
+                    <div class="game-tags">
+                        <span class="tag">Shooter</span>
+                    </div>
+                </a>
+
+                <a href="centipede/index.html" class="game-card">
+                    <div class="game-icon">🐛</div>
+                    <div class="game-title">Centipede</div>
+                    <div class="game-description">Shoot the segments!</div>
+                    <div class="game-tags">
+                        <span class="tag">Arcade</span>
+                    </div>
+                </a>
+
+                <a href="Frogger/index.html" class="game-card">
+                    <div class="game-icon">🐸</div>
+                    <div class="game-title">Frogger</div>
+                    <div class="game-description">Hop across traffic and rivers!</div>
+                    <div class="game-tags">
+                        <span class="tag">Arcade</span>
+                    </div>
+                </a>
+
+                <a href="digdug/index.html" class="game-card">
+                    <div class="game-icon">⛏️</div>
+                    <div class="game-title">Dig Dug</div>
+                    <div class="game-description">Dig tunnels and defeat enemies!</div>
+                    <div class="game-tags">
+                        <span class="tag">Arcade</span>
+                    </div>
+                </a>
+
+                <a href="pitfall/index.html" class="game-card">
+                    <div class="game-icon">🏃</div>
+                    <div class="game-title">Pitfall</div>
+                    <div class="game-description">Jungle adventure platformer!</div>
+                    <div class="game-tags">
+                        <span class="tag">Platformer</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- RACING & ACTION -->
+        <div class="category">
+            <h2 class="category-title">🏎️ Racing & Action</h2>
+            <div class="games-grid">
+                <a href="MarioKart/index.html" class="game-card">
+                    <div class="game-icon">🏁</div>
+                    <div class="game-title">Mario Kart</div>
+                    <div class="game-description">Kart racing mayhem!</div>
+                    <div class="game-tags">
+                        <span class="tag">Racing</span>
+                    </div>
+                </a>
+
+                <a href="descent/index.html" class="game-card">
+                    <div class="game-icon">🚁</div>
+                    <div class="game-title">Descent</div>
+                    <div class="game-description">6DOF space combat!</div>
+                    <div class="game-tags">
+                        <span class="tag">3D Shooter</span>
+                    </div>
+                </a>
+
+                <a href="mortalkombat1/index.html" class="game-card">
+                    <div class="game-icon">🥋</div>
+                    <div class="game-title">Mortal Kombat</div>
+                    <div class="game-description">Brutal fighting action!</div>
+                    <div class="game-tags">
+                        <span class="tag">Fighting</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- CARD GAMES -->
+        <div class="category">
+            <h2 class="category-title">🃏 Card Games</h2>
+            <div class="games-grid">
+                <a href="Euchre/KaplanEuchreMulti-fixed-smaller.html" class="game-card">
+                    <div class="game-icon">🃏</div>
+                    <div class="game-title">Euchre Multiplayer</div>
+                    <div class="game-description">Classic trick-taking card game</div>
+                    <div class="game-tags">
+                        <span class="tag">Multiplayer</span>
+                        <span class="tag">4 Players</span>
+                    </div>
+                </a>
+
+                <a href="Canasta/KaplanCanastaMulti.html" class="game-card">
+                    <div class="game-icon">🎴</div>
+                    <div class="game-title">Canasta Multiplayer</div>
+                    <div class="game-description">Meld cards and form canastas</div>
+                    <div class="game-tags">
+                        <span class="tag">Multiplayer</span>
+                    </div>
+                </a>
+
+                <a href="Canasta/KaplanCanasta-V2.html" class="game-card">
+                    <div class="game-icon">🎴</div>
+                    <div class="game-title">Canasta Desktop</div>
+                    <div class="game-description">Desktop version with AI</div>
+                    <div class="game-tags">
+                        <span class="tag">Single Player</span>
+                    </div>
+                </a>
+
+                <a href="MobileCanasta/KaplanCanasta-Mobile_1.html" class="game-card">
+                    <div class="game-icon">📱</div>
+                    <div class="game-title">Canasta Mobile</div>
+                    <div class="game-description">Touch-optimized for phones</div>
+                    <div class="game-tags">
+                        <span class="tag">Mobile</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- VIDEO POKER -->
+        <div class="category">
+            <h2 class="category-title">🎰 Casino - Video Poker</h2>
+            <div class="games-grid">
+                <a href="Poker/index.html" class="game-card">
+                    <div class="game-icon">🎰</div>
+                    <div class="game-title">Video Poker</div>
+                    <div class="game-description">Classic video poker</div>
+                    <div class="game-tags">
+                        <span class="tag">Casino</span>
+                    </div>
+                </a>
+
+                <a href="Poker/bonus-poker.html" class="game-card">
+                    <div class="game-icon">💎</div>
+                    <div class="game-title">Bonus Poker</div>
+                    <div class="game-description">Enhanced payouts for 4-of-a-kind</div>
+                    <div class="game-tags">
+                        <span class="tag">Casino</span>
+                    </div>
+                </a>
+
+                <a href="Poker/triple-play-bonus-poker.html" class="game-card">
+                    <div class="game-icon">🎲</div>
+                    <div class="game-title">Triple Play Bonus Poker</div>
+                    <div class="game-description">Play 3 hands at once!</div>
+                    <div class="game-tags">
+                        <span class="tag">Casino</span>
+                        <span class="tag">Multi-Hand</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- MYSTERY GAMES -->
+        <div class="category">
+            <h2 class="category-title">🕵️ Mystery Games - Clue</h2>
+            <div class="games-grid">
+                <a href="Bridgerton/Bridgerton-Clue-Complete_1.html" class="game-card">
+                    <div class="game-icon">🎭</div>
+                    <div class="game-title">Bridgerton Mystery</div>
+                    <div class="game-description">Solve the scandalous murder!</div>
+                    <div class="game-tags">
+                        <span class="tag">Single Player</span>
+                        <span class="tag">Multiplayer</span>
+                    </div>
+                </a>
+
+                <a href="StarwarsClue/StarWars-Clue-Multiplayer777.html" class="game-card">
+                    <div class="game-icon">⭐</div>
+                    <div class="game-title">Star Wars Mystery</div>
+                    <div class="game-description">Disturbance in the Force!</div>
+                    <div class="game-tags">
+                        <span class="tag">Single Player</span>
+                        <span class="tag">Multiplayer</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function filterGames() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const gameCards = document.querySelectorAll('.game-card');
+            const categories = document.querySelectorAll('.category');
+            
+            gameCards.forEach(card => {
+                const title = card.querySelector('.game-title').textContent.toLowerCase();
+                const description = card.querySelector('.game-description').textContent.toLowerCase();
+                
+                if (title.includes(searchTerm) || description.includes(searchTerm)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Hide empty categories
+            categories.forEach(category => {
+                const visibleCards = category.querySelectorAll('.game-card[style="display: flex;"], .game-card:not([style*="display"])');
+                if (searchTerm && visibleCards.length === 0) {
+                    category.style.display = 'none';
+                } else {
+                    category.style.display = 'block';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
