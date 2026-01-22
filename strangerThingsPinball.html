@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stranger Things Pinball Machine</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a0033 0%, #2d0052 100%);
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+            color: #ff0000;
+            letter-spacing: 3px;
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            color: #00ffff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+        }
+        
+        canvas {
+            border: 3px solid #00ffff;
+            background: #0a0a0a;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5), inset 0 0 30px rgba(255, 0, 0, 0.1);
+            display: block;
+            margin: 20px auto;
+        }
+        
+        .info {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            font-size: 1.1em;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 5px;
+            border: 2px solid #00ffff;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-label {
+            color: #00ffff;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            color: #ff0000;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+        }
+        
+        .controls {
+            margin-top: 20px;
+            font-size: 1em;
+            color: #00ffff;
+        }
+        
+        .bumper-hits {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .bumper-stat {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border: 1px solid #ff00ff;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👻 STRANGER THINGS 👻</h1>
+        <div class="subtitle">PINBALL MACHINE</div>
+        
+        <canvas id="pinballCanvas" width="400" height="700"></canvas>
+        
+        <div class="info">
+            <div class="stat">
+                <div class="stat-label">Score</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Balls</div>
+                <div class="stat-value" id="ballCount">3</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Active Balls</div>
+                <div class="stat-value" id="activeBalls">1</div>
+            </div>
+        </div>
+        
+        <div class="bumper-hits" id="bumperStats"></div>
+        
+        <div class="controls">
+            <p>🎮 <strong>Controls:</strong></p>
+            <p><strong>Left Mouse Button:</strong> Left Paddle</p>
+            <p><strong>Right Mouse Button:</strong> Right Paddle</p>
+            <p><strong>SPACE:</strong> Launch Ball</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('pinballCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        const game = {
+            score: 0,
+            totalBalls: 3,
+            balls: [],
+            paddles: {
+                left: { x: 30, y: canvas.height - 80, width: 15, height: 80, active: false },
+                right: { x: canvas.width - 45, y: canvas.height - 80, width: 15, height: 80, active: false }
+            },
+            bumpers: [],
+            borders: {
+                top: { x: 0, y: 20, width: canvas.width, height: 10 },
+                left: { x: 10, y: 0, width: 10, height: canvas.height },
+                right: { x: canvas.width - 20, y: 0, width: 10, height: canvas.height },
+                bottom: { x: 0, y: canvas.height - 20, width: canvas.width, height: 20 }
+            },
+            bumperHits: {},
+            gameActive: false
+        };
+        
+        // Ball class
+        class Ball {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.radius = 6;
+                this.gravity = 0.3;
+                this.active = true;
+            }
+            
+            update() {
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Check collisions with borders
+                if (this.x - this.radius < game.borders.left.x + game.borders.left.width) {
+                    this.x = game.borders.left.x + game.borders.left.width + this.radius;
+                    this.vx = Math.abs(this.vx) * 0.8;
+                }
+                if (this.x + this.radius > game.borders.right.x) {
+                    this.x = game.borders.right.x - this.radius;
+                    this.vx = -Math.abs(this.vx) * 0.8;
+                }
+                if (this.y - this.radius < game.borders.top.y) {
+                    this.y = game.borders.top.y + this.radius;
+                    this.vy = Math.abs(this.vy) * 0.8;
+                }
+                
+                // Check if ball fell off bottom
+                if (this.y > canvas.height + 50) {
+                    this.active = false;
+                }
+            }
+            
+            draw() {
+                ctx.fillStyle = '#ff00ff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Glow effect
+                ctx.strokeStyle = 'rgba(255, 0, 255, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        
+        // Initialize bumpers
+        function initBumpers() {
+            game.bumpers = [
+                { x: 100, y: 150, radius: 25, color: '#ff0000', id: 'top-left' },
+                { x: 200, y: 100, radius: 25, color: '#ff00ff', id: 'top-center' },
+                { x: 300, y: 150, radius: 25, color: '#ff0000', id: 'top-right' },
+                { x: 80, y: 280, radius: 20, color: '#00ffff', id: 'mid-left' },
+                { x: 200, y: 300, radius: 20, color: '#00ffff', id: 'center' },
+                { x: 320, y: 280, radius: 20, color: '#00ffff', id: 'mid-right' },
+                { x: 150, y: 450, radius: 25, color: '#ffff00', id: 'bottom-left' },
+                { x: 250, y: 450, radius: 25, color: '#ffff00', id: 'bottom-right' },
+            ];
+            
+            // Initialize bumper hit counts
+            game.bumpers.forEach(bumper => {
+                game.bumperHits[bumper.id] = 0;
+            });
+        }
+        
+        // Draw everything
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid background effect
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+            
+            // Draw borders
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(game.borders.left.x, game.borders.left.y, game.borders.left.width, game.borders.left.height);
+            ctx.fillRect(game.borders.right.x, game.borders.right.y, game.borders.right.width, game.borders.right.height);
+            ctx.fillRect(game.borders.top.x, game.borders.top.y, game.borders.top.width, game.borders.top.height);
+            
+            // Draw bumpers
+            game.bumpers.forEach(bumper => {
+                ctx.fillStyle = bumper.color;
+                ctx.beginPath();
+                ctx.arc(bumper.x, bumper.y, bumper.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Bumper glow
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(bumper.x, bumper.y, bumper.radius + 3, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+            
+            // Draw paddles
+            drawPaddle(game.paddles.left, game.paddles.left.active);
+            drawPaddle(game.paddles.right, game.paddles.right.active);
+            
+            // Draw balls
+            game.balls.forEach(ball => ball.draw());
+            
+            // Draw launch zone indicator
+            if (game.balls.length === 0 && game.totalBalls > 0) {
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.fillRect(canvas.width - 40, 50, 30, 80);
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(canvas.width - 40, 50, 30, 80);
+                ctx.fillStyle = '#00ff00';
+                ctx.font = '12px Arial';
+                ctx.fillText('LAUNCH', canvas.width - 55, 100);
+                ctx.fillText('SPACE', canvas.width - 45, 115);
+            }
+        }
+        
+        function drawPaddle(paddle, active) {
+            const angle = active ? 0.3 : 0;
+            ctx.save();
+            ctx.translate(paddle.x, paddle.y + paddle.height);
+            ctx.rotate(-angle);
+            
+            ctx.fillStyle = active ? '#00ff00' : '#ff00ff';
+            ctx.fillRect(0, -paddle.height, paddle.width, paddle.height);
+            
+            if (active) {
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, -paddle.height, paddle.width, paddle.height);
+            }
+            
+            ctx.restore();
+        }
+        
+        // Check ball collision with bumper
+        function checkBumperCollision(ball, bumper) {
+            const dx = ball.x - bumper.x;
+            const dy = ball.y - bumper.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < ball.radius + bumper.radius) {
+                // Collision detected
+                const angle = Math.atan2(dy, dx);
+                const speed = 8;
+                ball.vx = Math.cos(angle) * speed;
+                ball.vy = Math.sin(angle) * speed;
+                
+                // Move ball outside bumper
+                const overlap = ball.radius + bumper.radius - distance;
+                ball.x += Math.cos(angle) * overlap;
+                ball.y += Math.sin(angle) * overlap;
+                
+                // Update score and track bumper hits
+                game.score += 100;
+                game.bumperHits[bumper.id]++;
+                
+                // Check if bumper hit 3 times
+                if (game.bumperHits[bumper.id] % 3 === 0) {
+                    launchNewBall();
+                }
+            }
+        }
+        
+        // Check ball collision with paddle
+        function checkPaddleCollision(ball, paddle, isLeft) {
+            const paddleRectX = isLeft ? paddle.x : paddle.x - paddle.width;
+            const paddleRectY = paddle.y;
+            
+            if (ball.x > paddleRectX && ball.x < paddleRectX + paddle.width &&
+                ball.y > paddleRectY && ball.y < paddleRectY + paddle.height) {
+                
+                if (paddle.active) {
+                    const hitPos = (ball.y - paddleRectY) / paddle.height;
+                    ball.vy = -12;
+                    ball.vx = isLeft ? 6 : -6;
+                    game.score += 50;
+                }
+            }
+        }
+        
+        // Launch a new ball
+        function launchNewBall() {
+            if (game.totalBalls > 0) {
+                const newBall = new Ball(canvas.width - 25, 100);
+                game.balls.push(newBall);
+                game.totalBalls--;
+                game.score += 500; // Bonus for extra ball
+            }
+        }
+        
+        // Update game state
+        function update() {
+            // Update balls
+            game.balls = game.balls.filter(ball => ball.active);
+            
+            game.balls.forEach(ball => {
+                ball.update();
+                
+                // Check bumper collisions
+                game.bumpers.forEach(bumper => {
+                    checkBumperCollision(ball, bumper);
+                });
+                
+                // Check paddle collisions
+                checkPaddleCollision(ball, game.paddles.left, true);
+                checkPaddleCollision(ball, game.paddles.right, false);
+            });
+            
+            // Deactivate paddles after a short time
+            game.paddles.left.active = false;
+            game.paddles.right.active = false;
+        }
+        
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            
+            // Update UI
+            document.getElementById('score').textContent = game.score;
+            document.getElementById('ballCount').textContent = game.totalBalls;
+            document.getElementById('activeBalls').textContent = game.balls.length;
+            
+            // Update bumper stats
+            const bumperStatsDiv = document.getElementById('bumperStats');
+            bumperStatsDiv.innerHTML = '';
+            game.bumpers.forEach(bumper => {
+                const statDiv = document.createElement('div');
+                statDiv.className = 'bumper-stat';
+                statDiv.textContent = `${bumper.id.toUpperCase()}: ${game.bumperHits[bumper.id]}`;
+                bumperStatsDiv.appendChild(statDiv);
+            });
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Input handling
+        const keys = {};
+        
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (game.balls.length === 0 && game.totalBalls > 0) {
+                    launchNewBall();
+                }
+            }
+        });
+        
+        window.addEventListener('mousedown', (e) => {
+            if (e.button === 0 || e.button === 2) { // Left or right mouse button
+                game.paddles.left.active = true;
+                game.paddles.right.active = true;
+            }
+        });
+        
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0 || e.button === 2) {
+                game.paddles.left.active = false;
+                game.paddles.right.active = false;
+            }
+        });
+        
+        // Prevent context menu on right click
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        // Initialize and start game
+        initBumpers();
+        gameLoop();
+        
+        // Welcome message
+        console.log('%c🎮 STRANGER THINGS PINBALL 🎮', 'font-size: 20px; color: #ff00ff; text-shadow: 0 0 10px;');
+        console.log('%cClick with mouse buttons or press SPACE to launch!', 'color: #00ffff; font-size: 14px;');
+    </script>
+</body>
+</html>

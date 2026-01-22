@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>15 Play Bonus Poker - Cheat Edition</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.game-container {
+    background: #0a2540;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    max-width: 1200px;
+    width: 100%;
+}
+
+h1 {
+    text-align: center;
+    color: #ffd700;
+    margin-bottom: 10px;
+    font-size: 2em;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.subtitle {
+    text-align: center;
+    color: #87ceeb;
+    margin-bottom: 30px;
+    font-size: 0.9em;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 30px;
+    background: rgba(0,0,0,0.3);
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-label {
+    color: #87ceeb;
+    font-size: 0.9em;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    color: #ffd700;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.hands-container {
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.hand {
+    margin-bottom: 0;
+    background: rgba(255,255,255,0.05);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.hand-label {
+    color: #ffd700;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.cards {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+.card {
+    width: 50px;
+    height: 70px;
+    background: white;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card.held {
+    transform: translateY(-8px);
+    box-shadow: 0 4px 8px rgba(255,215,0,0.5);
+    border: 2px solid #ffd700;
+}
+
+.card-rank {
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+.card-suit {
+    font-size: 1.2em;
+}
+
+.card.red {
+    color: #d32f2f;
+}
+
+.card.black {
+    color: #000;
+}
+
+.card-back {
+    background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3em;
+}
+
+.hold-indicator {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffd700;
+    color: #000;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.55em;
+    font-weight: bold;
+}
+
+.hand-result {
+    text-align: center;
+    font-size: 0.8em;
+    color: #ffd700;
+    min-height: 20px;
+    font-weight: bold;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 15px 40px;
+    font-size: 1.1em;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s;
+    text-transform: uppercase;
+}
+
+.btn-deal {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+}
+
+.btn-deal:hover {
+    background: linear-gradient(135deg, #229954 0%, #1e8449 100%);
+    transform: scale(1.05);
+}
+
+.btn-draw {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+}
+
+.btn-draw:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+    transform: scale(1.05);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.paytable {
+    background: rgba(0,0,0,0.3);
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 30px;
+}
+
+.paytable h3 {
+    color: #ffd700;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.paytable table {
+    width: 100%;
+    color: #fff;
+    border-collapse: collapse;
+}
+
+.paytable th,
+.paytable td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.paytable th {
+    color: #87ceeb;
+    font-weight: bold;
+}
+
+.paytable td:last-child {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+/* Cheat Menu Styles */
+.cheat-menu {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.95);
+    border: 3px solid #ffd700;
+    border-radius: 15px;
+    padding: 30px;
+    z-index: 1000;
+    max-width: 600px;
+    width: 90%;
+}
+
+.cheat-menu.show {
+    display: block;
+}
+
+.cheat-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 999;
+}
+
+.cheat-overlay.show {
+    display: block;
+}
+
+.cheat-menu h2 {
+    color: #ffd700;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.cheat-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.cheat-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.cheat-row label {
+    color: #87ceeb;
+    min-width: 100px;
+}
+
+.cheat-row select {
+    flex: 1;
+    padding: 10px;
+    font-size: 1em;
+    border-radius: 5px;
+    border: 2px solid #ffd700;
+    background: #0a2540;
+    color: #fff;
+}
+
+.cheat-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.btn-cheat {
+    padding: 10px 30px;
+    font-size: 1em;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-apply {
+    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    color: white;
+}
+
+.btn-cancel {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+}
+
+.cheat-indicator {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(255,0,0,0.8);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    display: none;
+}
+
+.cheat-indicator.show {
+    display: block;
+}
+
+@media (max-width: 1024px) {
+    .hands-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .hands-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .card {
+        width: 45px;
+        height: 63px;
+    }
+    
+    .card-rank {
+        font-size: 0.8em;
+    }
+    
+    .card-suit {
+        font-size: 1.1em;
+    }
+}
+</style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎰 15 Play Bonus Poker 🎰</h1>
+        <p class="subtitle">Play 15 Hands at Once!</p>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Credits</div>
+                <div class="stat-value" id="credits">1000</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Bet Per Hand</div>
+                <div class="stat-value" id="bet">5</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Total Bet</div>
+                <div class="stat-value" id="totalBet">15</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Win</div>
+                <div class="stat-value" id="win">0</div>
+            </div>
+        </div>
+
+        <div class="hands-container">
+            <!-- Hand 1 -->
+            <div class="hand">
+                <div class="hand-label">Hand 1</div>
+                <div class="cards" id="hand1"></div>
+                <div class="hand-result" id="result1"></div>
+            </div>
+
+            <!-- Hand 2 -->
+            <div class="hand">
+                <div class="hand-label">Hand 2</div>
+                <div class="cards" id="hand2"></div>
+                <div class="hand-result" id="result2"></div>
+            </div>
+
+            <!-- Hand 3 -->
+            <div class="hand">
+                <div class="hand-label">Hand 3</div>
+                <div class="cards" id="hand3"></div>
+                <div class="hand-result" id="result3"></div>
+            </div>
+
+            <!-- Hand 4 -->
+            <div class="hand">
+                <div class="hand-label">Hand 4</div>
+                <div class="cards" id="hand4"></div>
+                <div class="hand-result" id="result4"></div>
+            </div>
+
+            <!-- Hand 5 -->
+            <div class="hand">
+                <div class="hand-label">Hand 5</div>
+                <div class="cards" id="hand5"></div>
+                <div class="hand-result" id="result5"></div>
+            </div>
+
+            <!-- Hand 6 -->
+            <div class="hand">
+                <div class="hand-label">Hand 6</div>
+                <div class="cards" id="hand6"></div>
+                <div class="hand-result" id="result6"></div>
+            </div>
+
+            <!-- Hand 7 -->
+            <div class="hand">
+                <div class="hand-label">Hand 7</div>
+                <div class="cards" id="hand7"></div>
+                <div class="hand-result" id="result7"></div>
+            </div>
+
+            <!-- Hand 8 -->
+            <div class="hand">
+                <div class="hand-label">Hand 8</div>
+                <div class="cards" id="hand8"></div>
+                <div class="hand-result" id="result8"></div>
+            </div>
+
+            <!-- Hand 9 -->
+            <div class="hand">
+                <div class="hand-label">Hand 9</div>
+                <div class="cards" id="hand9"></div>
+                <div class="hand-result" id="result9"></div>
+            </div>
+
+            <!-- Hand 10 -->
+            <div class="hand">
+                <div class="hand-label">Hand 10</div>
+                <div class="cards" id="hand10"></div>
+                <div class="hand-result" id="result10"></div>
+            </div>
+
+            <!-- Hand 11 -->
+            <div class="hand">
+                <div class="hand-label">Hand 11</div>
+                <div class="cards" id="hand11"></div>
+                <div class="hand-result" id="result11"></div>
+            </div>
+
+            <!-- Hand 12 -->
+            <div class="hand">
+                <div class="hand-label">Hand 12</div>
+                <div class="cards" id="hand12"></div>
+                <div class="hand-result" id="result12"></div>
+            </div>
+
+            <!-- Hand 13 -->
+            <div class="hand">
+                <div class="hand-label">Hand 13</div>
+                <div class="cards" id="hand13"></div>
+                <div class="hand-result" id="result13"></div>
+            </div>
+
+            <!-- Hand 14 -->
+            <div class="hand">
+                <div class="hand-label">Hand 14</div>
+                <div class="cards" id="hand14"></div>
+                <div class="hand-result" id="result14"></div>
+            </div>
+
+            <!-- Hand 15 -->
+            <div class="hand">
+                <div class="hand-label">Hand 15</div>
+                <div class="cards" id="hand15"></div>
+                <div class="hand-result" id="result15"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-deal" id="dealBtn" onclick="deal()">Deal</button>
+            <button class="btn btn-draw" id="drawBtn" onclick="draw()" disabled>Draw</button>
+        </div>
+
+        <div class="paytable">
+            <h3>Paytable (5 Coin Bet)</h3>
+            <table>
+                <tr><th>Hand</th><th>Payout</th></tr>
+                <tr><td>Royal Flush</td><td>4000</td></tr>
+                <tr><td>Straight Flush</td><td>250</td></tr>
+                <tr><td>Four Aces</td><td>400</td></tr>
+                <tr><td>Four 2-4</td><td>200</td></tr>
+                <tr><td>Four 5-K</td><td>125</td></tr>
+                <tr><td>Full House</td><td>40</td></tr>
+                <tr><td>Flush</td><td>30</td></tr>
+                <tr><td>Straight</td><td>20</td></tr>
+                <tr><td>Three of a Kind</td><td>15</td></tr>
+                <tr><td>Two Pair</td><td>5</td></tr>
+                <tr><td>Jacks or Better</td><td>5</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- Cheat Menu -->
+    <div class="cheat-overlay" id="cheatOverlay"></div>
+    <div class="cheat-menu" id="cheatMenu">
+        <h2>🎴 Card Selector 🎴</h2>
+        <div class="cheat-controls">
+            <div class="cheat-row">
+                <label>Card:</label>
+                <select id="cardSelect">
+                    <option value="">-- Select Card --</option>
+                </select>
+            </div>
+            <div class="cheat-row">
+                <label>Position:</label>
+                <select id="positionSelect">
+                    <option value="0">Position 1</option>
+                    <option value="1">Position 2</option>
+                    <option value="2">Position 3</option>
+                    <option value="3">Position 4</option>
+                    <option value="4">Position 5</option>
+                </select>
+            </div>
+        </div>
+        <div class="cheat-buttons">
+            <button class="btn-cheat btn-apply" onclick="applyCheat()">Apply</button>
+            <button class="btn-cheat btn-cancel" onclick="closeCheatMenu()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="cheat-indicator" id="cheatIndicator">CHEAT MODE</div>
+
+<script>
+const suits = ['♠', '♣', '♥', '♦'];
+const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const rankValues = {
+    '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+    '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
+};
+
+let credits = 1000;
+let bet = 5;
+let deck = [];
+let hands = Array(15).fill(null).map(() => []);
+let held = [[], [], [], [], [], [], [], [], [], [], [], [], [], [], []]; // Only hand 1 can be held
+let gameState = 'deal'; // 'deal' or 'draw'
+
+// Cheat code tracking
+let cheatBuffer = '';
+let cheatCount = 0;
+let cheatEnabled = false;
+
+// Initialize
+function init() {
+    updateDisplay();
+    populateCardSelect();
+    
+    // Add keypress listener for cheat code
+    document.addEventListener('keypress', handleCheatCode);
+}
+
+function handleCheatCode(e) {
+    if (gameState !== 'draw') return;
+    
+    const key = e.key.toLowerCase();
+    cheatBuffer += key;
+    
+    // Keep only last 3 characters
+    if (cheatBuffer.length > 3) {
+        cheatBuffer = cheatBuffer.slice(-3);
+    }
+    
+    if (cheatBuffer === 'man') {
+        cheatCount++;
+        cheatBuffer = ''; // Reset buffer
+        
+        if (cheatCount === 3) {
+            activateCheatMenu();
+            cheatCount = 0; // Reset count
+        }
+    }
+}
+
+function populateCardSelect() {
+    const select = document.getElementById('cardSelect');
+    select.innerHTML = '<option value="">-- Select Card --</option>';
+    
+    suits.forEach(suit => {
+        ranks.forEach(rank => {
+            const option = document.createElement('option');
+            option.value = rank + suit;
+            option.textContent = rank + suit;
+            select.appendChild(option);
+        });
+    });
+}
+
+function activateCheatMenu() {
+    cheatEnabled = true;
+    document.getElementById('cheatMenu').classList.add('show');
+    document.getElementById('cheatOverlay').classList.add('show');
+    document.getElementById('cheatIndicator').classList.add('show');
+}
+
+function closeCheatMenu() {
+    document.getElementById('cheatMenu').classList.remove('show');
+    document.getElementById('cheatOverlay').classList.remove('show');
+}
+
+function applyCheat() {
+    const cardValue = document.getElementById('cardSelect').value;
+    const position = parseInt(document.getElementById('positionSelect').value);
+    
+    if (!cardValue) {
+        alert('Please select a card!');
+        return;
+    }
+    
+    // Parse the card
+    const suit = cardValue.slice(-1);
+    const rank = cardValue.slice(0, -1);
+    
+    // Remove the card from deck if it exists
+    deck = deck.filter(card => !(card.rank === rank && card.suit === suit));
+    
+    // Replace the card in hand 1 at the specified position
+    hands[0][position] = {rank, suit};
+    
+    closeCheatMenu();
+    renderHands();
+    
+    alert(`Card ${cardValue} placed at position ${position + 1}!`);
+}
+
+function createDeck() {
+    const newDeck = [];
+    suits.forEach(suit => {
+        ranks.forEach(rank => {
+            newDeck.push({rank, suit});
+        });
+    });
+    return shuffle(newDeck);
+}
+
+function shuffle(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function deal() {
+    if (credits < bet * 15) {
+        alert('Not enough credits!');
+        return;
+    }
+    
+    // Reset cheat state
+    cheatCount = 0;
+    cheatBuffer = '';
+    
+    credits -= bet * 15;
+    deck = createDeck();
+    hands = Array(15).fill(null).map(() => []);
+    held = Array(15).fill(null).map(() => []);
+    
+    // Deal 5 cards to each hand
+    for (let i = 0; i < 15; i++) {
+        for (let j = 0; j < 5; j++) {
+            hands[i].push(deck.pop());
+        }
+    }
+    
+    gameState = 'draw';
+    document.getElementById('dealBtn').disabled = true;
+    document.getElementById('drawBtn').disabled = false;
+    
+    clearResults();
+    updateDisplay();
+    renderHands();
+}
+
+function toggleHold(handIndex, cardIndex) {
+    if (gameState !== 'draw' || handIndex !== 0) return; // Only hand 1 can hold cards
+    
+    const heldIndex = held[handIndex].indexOf(cardIndex);
+    if (heldIndex > -1) {
+        held[handIndex].splice(heldIndex, 1);
+    } else {
+        held[handIndex].push(cardIndex);
+    }
+    
+    renderHands();
+}
+
+function draw() {
+    // For hand 1, replace non-held cards
+    for (let i = 0; i < 5; i++) {
+        if (!held[0].includes(i)) {
+            hands[0][i] = deck.pop();
+        }
+    }
+    
+    // For hands 2-15, copy held cards from hand 1 and deal new cards for others
+    for (let handIdx = 1; handIdx < 15; handIdx++) {
+        for (let i = 0; i < 5; i++) {
+            if (held[0].includes(i)) {
+                hands[handIdx][i] = {...hands[0][i]}; // Copy held card
+            } else {
+                hands[handIdx][i] = deck.pop(); // New card
+            }
+        }
+    }
+    
+    gameState = 'deal';
+    document.getElementById('dealBtn').disabled = false;
+    document.getElementById('drawBtn').disabled = true;
+    
+    evaluateHands();
+    renderHands();
+}
+
+function renderHands() {
+    for (let i = 0; i < 15; i++) {
+        const container = document.getElementById(`hand${i + 1}`);
+        container.innerHTML = '';
+        
+        hands[i].forEach((card, idx) => {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'card ' + (isRed(card.suit) ? 'red' : 'black');
+            
+            if (i === 0 && held[i].includes(idx)) {
+                cardDiv.classList.add('held');
+            }
+            
+            if (i === 0 && gameState === 'draw') {
+                cardDiv.onclick = () => toggleHold(i, idx);
+            }
+            
+            cardDiv.innerHTML = `
+                ${held[i].includes(idx) ? '<div class="hold-indicator">HELD</div>' : ''}
+                <div class="card-rank">${card.rank}</div>
+                <div class="card-suit">${card.suit}</div>
+                <div class="card-rank">${card.rank}</div>
+            `;
+            
+            container.appendChild(cardDiv);
+        });
+    }
+}
+
+function isRed(suit) {
+    return suit === '♥' || suit === '♦';
+}
+
+function evaluateHands() {
+    let totalWin = 0;
+    
+    hands.forEach((hand, idx) => {
+        const result = evaluateHand(hand);
+        document.getElementById(`result${idx + 1}`).textContent = result.name;
+        totalWin += result.payout;
+    });
+    
+    credits += totalWin;
+    document.getElementById('win').textContent = totalWin;
+    updateDisplay();
+}
+
+function clearResults() {
+    for (let i = 1; i <= 15; i++) {
+        document.getElementById(`result${i}`).textContent = '';
+    }
+    document.getElementById('win').textContent = '0';
+}
+
+function evaluateHand(hand) {
+    const rankCounts = {};
+    const suitCounts = {};
+    
+    hand.forEach(card => {
+        rankCounts[card.rank] = (rankCounts[card.rank] || 0) + 1;
+        suitCounts[card.suit] = (suitCounts[card.suit] || 0) + 1;
+    });
+    
+    const counts = Object.values(rankCounts).sort((a, b) => b - a);
+    const isFlush = Object.values(suitCounts).some(count => count === 5);
+    const isStraight = checkStraight(hand);
+    const isRoyal = isStraight && hand.some(c => c.rank === 'A') && hand.some(c => c.rank === 'K');
+    
+    // Check for four of a kind
+    const fourKind = Object.entries(rankCounts).find(([rank, count]) => count === 4);
+    
+    if (isRoyal && isFlush) {
+        return {name: 'Royal Flush', payout: 4000};
+    }
+    if (isStraight && isFlush) {
+        return {name: 'Straight Flush', payout: 250};
+    }
+    if (fourKind) {
+        const rank = fourKind[0];
+        if (rank === 'A') return {name: 'Four Aces', payout: 400};
+        if (['2', '3', '4'].includes(rank)) return {name: 'Four 2-4', payout: 200};
+        return {name: 'Four 5-K', payout: 125};
+    }
+    if (counts[0] === 3 && counts[1] === 2) {
+        return {name: 'Full House', payout: 40};
+    }
+    if (isFlush) {
+        return {name: 'Flush', payout: 30};
+    }
+    if (isStraight) {
+        return {name: 'Straight', payout: 20};
+    }
+    if (counts[0] === 3) {
+        return {name: 'Three of a Kind', payout: 15};
+    }
+    if (counts[0] === 2 && counts[1] === 2) {
+        return {name: 'Two Pair', payout: 5};
+    }
+    if (counts[0] === 2) {
+        const pair = Object.entries(rankCounts).find(([rank, count]) => count === 2);
+        if (['J', 'Q', 'K', 'A'].includes(pair[0])) {
+            return {name: 'Jacks or Better', payout: 5};
+        }
+    }
+    
+    return {name: '', payout: 0};
+}
+
+function checkStraight(hand) {
+    const values = hand.map(c => rankValues[c.rank]).sort((a, b) => a - b);
+    
+    // Check normal straight
+    let isStraight = true;
+    for (let i = 1; i < values.length; i++) {
+        if (values[i] !== values[i-1] + 1) {
+            isStraight = false;
+            break;
+        }
+    }
+    
+    // Check A-2-3-4-5 (wheel)
+    if (!isStraight && values[0] === 2 && values[4] === 14) {
+        const wheelValues = [values[0], values[1], values[2], values[3], 1];
+        wheelValues.sort((a, b) => a - b);
+        isStraight = true;
+        for (let i = 1; i < wheelValues.length; i++) {
+            if (wheelValues[i] !== wheelValues[i-1] + 1) {
+                isStraight = false;
+                break;
+            }
+        }
+    }
+    
+    return isStraight;
+}
+
+function updateDisplay() {
+    document.getElementById('credits').textContent = credits;
+    document.getElementById('bet').textContent = bet;
+    document.getElementById('totalBet').textContent = bet * 15;
+}
+
+// Initialize game
+init();
+</script>
+</body>
+</html>
