@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dig Dug</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        .title {
+            font-size: 56px;
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-shadow: 
+                3px 3px 0 #ff00ff,
+                6px 6px 0 #000;
+            letter-spacing: 8px;
+            font-weight: bold;
+        }
+        
+        .game-container {
+            position: relative;
+            border: 4px solid #00ffff;
+            box-shadow: 0 0 20px #00ffff;
+        }
+        
+        canvas {
+            display: block;
+            background: #000;
+        }
+        
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 20px;
+            color: #fff;
+            text-shadow: 2px 2px 0 #000;
+        }
+        
+        .hud-item {
+            background: rgba(0,0,0,0.7);
+            padding: 8px 15px;
+            border: 2px solid #00ffff;
+        }
+        
+        .controls {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #00ffff;
+            text-align: center;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px 60px;
+            border: 5px solid #ff00ff;
+            font-size: 48px;
+            display: none;
+            color: #ff00ff;
+            text-shadow: 3px 3px 0 #000;
+            text-align: center;
+        }
+        
+        .game-over.show {
+            display: block;
+        }
+        
+        .restart-btn {
+            margin-top: 20px;
+            padding: 12px 40px;
+            font-size: 20px;
+            background: #00ffff;
+            color: #000;
+            border: 3px solid #ff00ff;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .restart-btn:hover {
+            background: #ff00ff;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">DIG DUG</div>
+    
+    <div class="game-container">
+        <canvas id="gameCanvas" width="700" height="600"></canvas>
+        
+        <div class="hud">
+            <div class="hud-item">SCORE: <span id="score">0</span></div>
+            <div class="hud-item">LEVEL: <span id="level">1</span></div>
+            <div class="hud-item">LIVES: <span id="lives">3</span></div>
+        </div>
+        
+        <div class="game-over" id="gameOver">
+            <div>GAME OVER</div>
+            <div style="font-size: 24px; margin-top: 15px;">Final Score: <span id="finalScore">0</span></div>
+            <button class="restart-btn" onclick="restartGame()">PLAY AGAIN</button>
+        </div>
+    </div>
+    
+    <div class="controls">
+        Arrow Keys: Move | SPACE: Pump/Attack
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const TILE_SIZE = 35;
+        const COLS = 20;
+        const ROWS = 17;
+        
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        let gameRunning = true;
+        
+        // Grid (0=dirt, 1=tunnel, 2=surface)
+        let grid = [];
+        
+        // Player
+        const player = {
+            x: 0,
+            y: 0,
+            tileX: 0,
+            tileY: 0,
+            direction: 0, // 0=right, 1=down, 2=left, 3=up
+            moving: false,
+            pumping: false,
+            pumpTimer: 0,
+            pumpTarget: null,
+            invulnerable: false,
+            invulnerableTimer: 0
+        };
+        
+        // Enemies
+        let enemies = [];
+        
+        // Particles
+        let particles = [];
+        
+        // Keys
+        const keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (e.key === ' ' && !player.pumping && gameRunning) {
+                e.preventDefault();
+                startPump();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        function initGrid() {
+            grid = [];
+            for (let y = 0; y < ROWS; y++) {
+                grid[y] = [];
+                for (let x = 0; x < COLS; x++) {
+                    if (y === 0) {
+                        grid[y][x] = 2; // Surface
+                    } else {
+                        grid[y][x] = 0; // Dirt
+                    }
+                }
+            }
+            
+            // Create initial tunnel from player start
+            grid[0][0] = 1;
+        }
+        
+        function initLevel() {
+            initGrid();
+            
+            player.tileX = 0;
+            player.tileY = 0;
+            player.x = player.tileX * TILE_SIZE;
+            player.y = player.tileY * TILE_SIZE;
+            player.direction = 0;
+            player.pumping = false;
+            player.pumpTarget = null;
+            player.invulnerable = true;
+            player.invulnerableTimer = 120;
+            
+            // Spawn enemies
+            enemies = [];
+            const numEnemies = 3 + level;
+            for (let i = 0; i < numEnemies; i++) {
+                const type = Math.random() < 0.6 ? 'pooka' : 'fygar';
+                enemies.push({
+                    tileX: Math.floor(Math.random() * 15) + 5,
+                    tileY: Math.floor(Math.random() * 12) + 3,
+                    x: 0,
+                    y: 0,
+                    direction: Math.floor(Math.random() * 4),
+                    type: type,
+                    moveTimer: 0,
+                    inflated: 0,
+                    alive: true,
+                    ghost: false
+                });
+            }
+            
+            enemies.forEach(enemy => {
+                enemy.x = enemy.tileX * TILE_SIZE;
+                enemy.y = enemy.tileY * TILE_SIZE;
+            });
+        }
+        
+        function startPump() {
+            player.pumping = true;
+            player.pumpTimer = 0;
+            
+            // Check for enemy in front
+            let checkX = player.tileX;
+            let checkY = player.tileY;
+            
+            switch(player.direction) {
+                case 0: checkX++; break;
+                case 1: checkY++; break;
+                case 2: checkX--; break;
+                case 3: checkY--; break;
+            }
+            
+            enemies.forEach(enemy => {
+                if (enemy.alive && enemy.tileX === checkX && enemy.tileY === checkY) {
+                    player.pumpTarget = enemy;
+                }
+            });
+        }
+        
+        function updatePlayer() {
+            if (player.invulnerable) {
+                player.invulnerableTimer--;
+                if (player.invulnerableTimer <= 0) {
+                    player.invulnerable = false;
+                }
+            }
+            
+            if (player.pumping) {
+                player.pumpTimer++;
+                
+                if (player.pumpTarget && player.pumpTarget.alive) {
+                    player.pumpTarget.inflated++;
+                    
+                    if (player.pumpTarget.inflated >= 4) {
+                        // Enemy explodes
+                        player.pumpTarget.alive = false;
+                        score += player.pumpTarget.type === 'pooka' ? 200 : 400;
+                        updateScore();
+                        createExplosion(player.pumpTarget.x + TILE_SIZE/2, player.pumpTarget.y + TILE_SIZE/2);
+                        
+                        // Check if level complete
+                        if (enemies.filter(e => e.alive).length === 0) {
+                            setTimeout(nextLevel, 1500);
+                        }
+                    }
+                }
+                
+                if (player.pumpTimer >= 20) {
+                    player.pumping = false;
+                    player.pumpTarget = null;
+                    
+                    // Deflate enemies that weren't fully inflated
+                    enemies.forEach(enemy => {
+                        if (enemy.inflated > 0 && enemy.inflated < 4) {
+                            enemy.inflated--;
+                        }
+                    });
+                }
+                return;
+            }
+            
+            // Movement
+            let moved = false;
+            let newDirection = player.direction;
+            
+            if (keys['ArrowRight']) {
+                newDirection = 0;
+                if (canMove(player.tileX + 1, player.tileY)) {
+                    player.tileX++;
+                    moved = true;
+                }
+            } else if (keys['ArrowDown']) {
+                newDirection = 1;
+                if (canMove(player.tileX, player.tileY + 1)) {
+                    player.tileY++;
+                    moved = true;
+                }
+            } else if (keys['ArrowLeft']) {
+                newDirection = 2;
+                if (canMove(player.tileX - 1, player.tileY)) {
+                    player.tileX--;
+                    moved = true;
+                }
+            } else if (keys['ArrowUp']) {
+                newDirection = 3;
+                if (canMove(player.tileX, player.tileY - 1)) {
+                    player.tileY--;
+                    moved = true;
+                }
+            }
+            
+            player.direction = newDirection;
+            
+            if (moved) {
+                // Dig tunnel
+                grid[player.tileY][player.tileX] = 1;
+                score += 10;
+                updateScore();
+            }
+            
+            // Smooth movement
+            player.x += (player.tileX * TILE_SIZE - player.x) * 0.3;
+            player.y += (player.tileY * TILE_SIZE - player.y) * 0.3;
+        }
+        
+        function canMove(x, y) {
+            if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
+            return true;
+        }
+        
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+                
+                enemy.moveTimer++;
+                
+                if (enemy.moveTimer > 15 && enemy.inflated === 0) {
+                    enemy.moveTimer = 0;
+                    
+                    // AI: Move toward player or randomly
+                    const dx = player.tileX - enemy.tileX;
+                    const dy = player.tileY - enemy.tileY;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    let newX = enemy.tileX;
+                    let newY = enemy.tileY;
+                    
+                    if (dist < 8 && Math.random() < 0.7) {
+                        // Chase player
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            newX += dx > 0 ? 1 : -1;
+                            enemy.direction = dx > 0 ? 0 : 2;
+                        } else {
+                            newY += dy > 0 ? 1 : -1;
+                            enemy.direction = dy > 0 ? 1 : 3;
+                        }
+                    } else {
+                        // Random movement
+                        const dir = Math.floor(Math.random() * 4);
+                        enemy.direction = dir;
+                        switch(dir) {
+                            case 0: newX++; break;
+                            case 1: newY++; break;
+                            case 2: newX--; break;
+                            case 3: newY--; break;
+                        }
+                    }
+                    
+                    // Check bounds and move
+                    if (newX >= 0 && newX < COLS && newY >= 0 && newY < ROWS) {
+                        // Ghost through dirt if needed
+                        if (grid[newY][newX] === 0) {
+                            enemy.ghost = true;
+                        } else {
+                            enemy.ghost = false;
+                        }
+                        
+                        enemy.tileX = newX;
+                        enemy.tileY = newY;
+                    }
+                }
+                
+                // Smooth movement
+                enemy.x += (enemy.tileX * TILE_SIZE - enemy.x) * 0.2;
+                enemy.y += (enemy.tileY * TILE_SIZE - enemy.y) * 0.2;
+                
+                // Check collision with player
+                if (!player.invulnerable && enemy.tileX === player.tileX && enemy.tileY === player.tileY) {
+                    loseLife();
+                }
+            });
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.life--;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function createExplosion(x, y) {
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 30,
+                    color: ['#ff0000', '#ffff00', '#ff8800'][Math.floor(Math.random() * 3)]
+                });
+            }
+        }
+        
+        function loseLife() {
+            lives--;
+            updateLives();
+            
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                player.invulnerable = true;
+                player.invulnerableTimer = 120;
+                player.tileX = 0;
+                player.tileY = 0;
+                player.x = 0;
+                player.y = 0;
+            }
+        }
+        
+        function nextLevel() {
+            level++;
+            updateLevel();
+            initLevel();
+        }
+        
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    const posX = x * TILE_SIZE;
+                    const posY = y * TILE_SIZE;
+                    
+                    if (grid[y][x] === 0) {
+                        // Dirt
+                        ctx.fillStyle = '#8B4513';
+                        ctx.fillRect(posX, posY, TILE_SIZE, TILE_SIZE);
+                        ctx.fillStyle = '#654321';
+                        ctx.fillRect(posX + 2, posY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                    } else if (grid[y][x] === 2) {
+                        // Surface
+                        ctx.fillStyle = '#00ff00';
+                        ctx.fillRect(posX, posY, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+            }
+            
+            // Draw enemies
+            enemies.forEach(enemy => {
+                if (!enemy.alive) return;
+                
+                ctx.globalAlpha = enemy.ghost ? 0.5 : 1;
+                
+                const size = TILE_SIZE - 10 + (enemy.inflated * 8);
+                const offsetX = (TILE_SIZE - size) / 2;
+                const offsetY = (TILE_SIZE - size) / 2;
+                
+                // Body
+                if (enemy.type === 'pooka') {
+                    ctx.fillStyle = '#ff0000';
+                } else {
+                    ctx.fillStyle = '#00ff00';
+                }
+                ctx.fillRect(enemy.x + offsetX, enemy.y + offsetY, size, size);
+                
+                // Eyes
+                ctx.fillStyle = '#fff';
+                const eyeSize = Math.max(4, size / 6);
+                ctx.fillRect(enemy.x + offsetX + size/4, enemy.y + offsetY + size/3, eyeSize, eyeSize);
+                ctx.fillRect(enemy.x + offsetX + size*2/3, enemy.y + offsetY + size/3, eyeSize, eyeSize);
+                
+                ctx.globalAlpha = 1;
+            });
+            
+            // Draw player
+            if (!player.invulnerable || Math.floor(Date.now() / 100) % 2 === 0) {
+                ctx.fillStyle = '#00ffff';
+                ctx.fillRect(player.x + 5, player.y + 5, TILE_SIZE - 10, TILE_SIZE - 10);
+                
+                // Direction indicator
+                ctx.fillStyle = '#ffff00';
+                switch(player.direction) {
+                    case 0: // Right
+                        ctx.fillRect(player.x + TILE_SIZE - 8, player.y + TILE_SIZE/2 - 4, 8, 8);
+                        break;
+                    case 1: // Down
+                        ctx.fillRect(player.x + TILE_SIZE/2 - 4, player.y + TILE_SIZE - 8, 8, 8);
+                        break;
+                    case 2: // Left
+                        ctx.fillRect(player.x, player.y + TILE_SIZE/2 - 4, 8, 8);
+                        break;
+                    case 3: // Up
+                        ctx.fillRect(player.x + TILE_SIZE/2 - 4, player.y, 8, 8);
+                        break;
+                }
+                
+                // Pump indicator
+                if (player.pumping) {
+                    ctx.fillStyle = '#ff00ff';
+                    ctx.fillRect(player.x + TILE_SIZE/2 - 3, player.y + TILE_SIZE/2 - 3, 6, 6);
+                }
+            }
+            
+            // Draw particles
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 30;
+                ctx.fillRect(p.x, p.y, 4, 4);
+            });
+            ctx.globalAlpha = 1;
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+        
+        function updateLives() {
+            document.getElementById('lives').textContent = lives;
+        }
+        
+        function updateLevel() {
+            document.getElementById('level').textContent = level;
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').classList.add('show');
+        }
+        
+        function restartGame() {
+            score = 0;
+            lives = 3;
+            level = 1;
+            gameRunning = true;
+            
+            updateScore();
+            updateLives();
+            updateLevel();
+            
+            initLevel();
+            
+            document.getElementById('gameOver').classList.remove('show');
+        }
+        
+        function gameLoop() {
+            if (gameRunning) {
+                updatePlayer();
+                updateEnemies();
+                updateParticles();
+            }
+            
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        initLevel();
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaga</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        .game-container {
+            text-align: center;
+        }
+        
+        .title {
+            font-size: 48px;
+            color: #ff0000;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #ff0000;
+            letter-spacing: 8px;
+        }
+        
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 20px;
+            color: #fff;
+            width: 600px;
+        }
+        
+        .hud-item {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 15px;
+            border: 2px solid #0080ff;
+        }
+        
+        canvas {
+            border: 3px solid #0080ff;
+            background: #000;
+            display: block;
+            box-shadow: 0 0 20px #0080ff;
+        }
+        
+        .controls {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #0080ff;
+        }
+        
+        .game-over, .stage-clear {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px 60px;
+            border: 3px solid #ff0000;
+            font-size: 36px;
+            display: none;
+            color: #ff0000;
+            text-shadow: 0 0 10px #ff0000;
+        }
+        
+        .stage-clear {
+            border-color: #00ff00;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+        
+        .game-over.show, .stage-clear.show {
+            display: block;
+        }
+        
+        .restart-btn, .next-btn {
+            margin-top: 20px;
+            padding: 12px 40px;
+            font-size: 20px;
+            background: transparent;
+            color: #ff0000;
+            border: 2px solid #ff0000;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        
+        .next-btn {
+            color: #00ff00;
+            border-color: #00ff00;
+        }
+        
+        .restart-btn:hover, .next-btn:hover {
+            background: #ff0000;
+            color: #000;
+        }
+        
+        .next-btn:hover {
+            background: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="title">GALAGA</div>
+        <div class="hud">
+            <div class="hud-item">SCORE: <span id="score">0</span></div>
+            <div class="hud-item">STAGE: <span id="stage">1</span></div>
+            <div class="hud-item">LIVES: <span id="lives">3</span></div>
+        </div>
+        <canvas id="gameCanvas" width="600" height="800"></canvas>
+        <div class="controls">← → : Move | SPACE : Fire</div>
+    </div>
+    
+    <div class="game-over" id="gameOver">
+        <div>GAME OVER</div>
+        <div style="font-size: 22px; margin-top: 15px;">Final Score: <span id="finalScore">0</span></div>
+        <button class="restart-btn" onclick="restartGame()">PLAY AGAIN</button>
+    </div>
+    
+    <div class="stage-clear" id="stageClear">
+        <div>STAGE CLEAR!</div>
+        <div style="font-size: 22px; margin-top: 15px;">Bonus: 1000</div>
+        <button class="next-btn" onclick="nextStage()">NEXT STAGE</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let score = 0;
+        let lives = 3;
+        let stage = 1;
+        let gameRunning = true;
+        let stageClearing = false;
+        
+        // Player
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 80,
+            width: 30,
+            height: 30,
+            speed: 5,
+            canShoot: true,
+            shootCooldown: 0
+        };
+        
+        // Bullets
+        let bullets = [];
+        let enemyBullets = [];
+        
+        // Enemies
+        let enemies = [];
+        let enemyFormation = [];
+        
+        // Explosions
+        let explosions = [];
+        
+        // Stars background
+        let stars = [];
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                speed: Math.random() * 2 + 1
+            });
+        }
+        
+        // Keys
+        const keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (e.key === ' ' && gameRunning && !stageClearing) {
+                e.preventDefault();
+                shootBullet();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        function createFormation() {
+            enemyFormation = [];
+            enemies = [];
+            
+            const rows = 4;
+            const cols = 10;
+            const startX = 100;
+            const startY = 100;
+            const spacingX = 40;
+            const spacingY = 40;
+            
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    let type = 'grunt';
+                    let color = '#00ff00';
+                    let points = 50;
+                    
+                    if (row === 0) {
+                        type = 'boss';
+                        color = '#ff0000';
+                        points = 150;
+                    } else if (row === 1) {
+                        type = 'butterfly';
+                        color = '#ffff00';
+                        points = 100;
+                    }
+                    
+                    const formationX = startX + col * spacingX;
+                    const formationY = startY + row * spacingY;
+                    
+                    enemyFormation.push({
+                        x: formationX,
+                        y: formationY,
+                        type: type,
+                        color: color,
+                        points: points,
+                        occupied: false
+                    });
+                }
+            }
+        }
+        
+        function spawnWave() {
+            const formationPositions = [...enemyFormation];
+            
+            formationPositions.forEach((pos, index) => {
+                setTimeout(() => {
+                    if (gameRunning) {
+                        const enemy = {
+                            x: canvas.width / 2,
+                            y: -20,
+                            targetX: pos.x,
+                            targetY: pos.y,
+                            formationIndex: index,
+                            type: pos.type,
+                            color: pos.color,
+                            points: pos.points,
+                            width: 25,
+                            height: 25,
+                            state: 'entering',
+                            pathProgress: 0,
+                            shootTimer: Math.random() * 300 + 100,
+                            diveTimer: Math.random() * 400 + 200
+                        };
+                        
+                        enemies.push(enemy);
+                        pos.occupied = true;
+                    }
+                }, index * 100);
+            });
+        }
+        
+        function shootBullet() {
+            if (!player.canShoot || player.shootCooldown > 0) return;
+            
+            bullets.push({
+                x: player.x,
+                y: player.y - 10,
+                width: 3,
+                height: 15,
+                speed: 8
+            });
+            
+            player.shootCooldown = 15;
+        }
+        
+        function enemyShoot(enemy) {
+            enemyBullets.push({
+                x: enemy.x,
+                y: enemy.y + 10,
+                width: 3,
+                height: 15,
+                speed: 4
+            });
+        }
+        
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                explosions.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    life: 30,
+                    color: color
+                });
+            }
+        }
+        
+        function updatePlayer() {
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                player.x -= player.speed;
+            }
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                player.x += player.speed;
+            }
+            
+            player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
+            
+            if (player.shootCooldown > 0) {
+                player.shootCooldown--;
+            }
+        }
+        
+        function updateBullets() {
+            // Player bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].y -= bullets[i].speed;
+                
+                if (bullets[i].y < 0) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Check enemy hits
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    
+                    if (bullets[i] &&
+                        bullets[i].x > enemy.x - enemy.width/2 &&
+                        bullets[i].x < enemy.x + enemy.width/2 &&
+                        bullets[i].y > enemy.y - enemy.height/2 &&
+                        bullets[i].y < enemy.y + enemy.height/2) {
+                        
+                        score += enemy.points;
+                        updateScore();
+                        
+                        createExplosion(enemy.x, enemy.y, enemy.color);
+                        
+                        if (enemy.formationIndex !== undefined) {
+                            enemyFormation[enemy.formationIndex].occupied = false;
+                        }
+                        
+                        enemies.splice(j, 1);
+                        bullets.splice(i, 1);
+                        
+                        if (enemies.length === 0 && !stageClearing) {
+                            stageClear();
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // Enemy bullets
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                enemyBullets[i].y += enemyBullets[i].speed;
+                
+                if (enemyBullets[i].y > canvas.height) {
+                    enemyBullets.splice(i, 1);
+                    continue;
+                }
+                
+                // Check player hit
+                if (Math.abs(enemyBullets[i].x - player.x) < 15 &&
+                    Math.abs(enemyBullets[i].y - player.y) < 15) {
+                    
+                    enemyBullets.splice(i, 1);
+                    loseLife();
+                }
+            }
+        }
+        
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                if (enemy.state === 'entering') {
+                    // Fly in with curve
+                    enemy.pathProgress += 0.02;
+                    
+                    const curveX = Math.sin(enemy.pathProgress * Math.PI * 2) * 100;
+                    enemy.x = canvas.width / 2 + curveX + (enemy.targetX - canvas.width / 2) * enemy.pathProgress;
+                    enemy.y = -20 + (enemy.targetY + 20) * enemy.pathProgress;
+                    
+                    if (enemy.pathProgress >= 1) {
+                        enemy.state = 'formation';
+                        enemy.x = enemy.targetX;
+                        enemy.y = enemy.targetY;
+                    }
+                } else if (enemy.state === 'formation') {
+                    // Bob up and down slightly
+                    enemy.y = enemy.targetY + Math.sin(Date.now() * 0.001 + enemy.formationIndex) * 5;
+                    
+                    // Shoot timer
+                    enemy.shootTimer--;
+                    if (enemy.shootTimer <= 0) {
+                        enemyShoot(enemy);
+                        enemy.shootTimer = Math.random() * 300 + 100 * (2 - stage * 0.1);
+                    }
+                    
+                    // Dive attack
+                    enemy.diveTimer--;
+                    if (enemy.diveTimer <= 0 && Math.random() < 0.01 * stage) {
+                        enemy.state = 'diving';
+                        enemy.divePhase = 0;
+                        enemy.startX = enemy.x;
+                        enemy.startY = enemy.y;
+                    }
+                } else if (enemy.state === 'diving') {
+                    enemy.divePhase += 0.02;
+                    
+                    // Swooping dive pattern
+                    const progress = enemy.divePhase;
+                    const targetPlayerX = player.x;
+                    
+                    if (progress < 0.5) {
+                        // Dive down towards player
+                        const t = progress * 2;
+                        enemy.x = enemy.startX + (targetPlayerX - enemy.startX) * t;
+                        enemy.y = enemy.startY + 300 * t;
+                    } else if (progress < 1) {
+                        // Loop back
+                        const t = (progress - 0.5) * 2;
+                        enemy.y = enemy.startY + 300 - 200 * t;
+                        enemy.x = targetPlayerX + Math.sin(t * Math.PI) * 100;
+                    } else {
+                        // Return to formation
+                        const t = Math.min((progress - 1) * 2, 1);
+                        enemy.x = enemy.x + (enemy.targetX - enemy.x) * t * 0.1;
+                        enemy.y = enemy.y + (enemy.targetY - enemy.y) * t * 0.1;
+                        
+                        if (t >= 0.5) {
+                            enemy.state = 'formation';
+                            enemy.x = enemy.targetX;
+                            enemy.y = enemy.targetY;
+                            enemy.diveTimer = Math.random() * 400 + 200;
+                        }
+                    }
+                    
+                    // Check collision with player during dive
+                    if (Math.abs(enemy.x - player.x) < 20 && Math.abs(enemy.y - player.y) < 20) {
+                        loseLife();
+                    }
+                }
+            });
+        }
+        
+        function updateExplosions() {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const exp = explosions[i];
+                exp.x += exp.vx;
+                exp.y += exp.vy;
+                exp.life--;
+                
+                if (exp.life <= 0) {
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+        
+        function updateStars() {
+            stars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+        }
+        
+        function loseLife() {
+            lives--;
+            updateLives();
+            
+            createExplosion(player.x, player.y, '#00ffff');
+            
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                player.x = canvas.width / 2;
+                player.canShoot = false;
+                setTimeout(() => {
+                    player.canShoot = true;
+                }, 1000);
+            }
+        }
+        
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars
+            ctx.fillStyle = '#fff';
+            stars.forEach(star => {
+                ctx.fillRect(star.x, star.y, 1, 2);
+            });
+            
+            // Draw player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.fillStyle = '#00ffff';
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.lineTo(-12, 15);
+            ctx.lineTo(0, 10);
+            ctx.lineTo(12, 15);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+            
+            // Draw bullets
+            ctx.fillStyle = '#ffff00';
+            bullets.forEach(bullet => {
+                ctx.fillRect(bullet.x - bullet.width/2, bullet.y, bullet.width, bullet.height);
+            });
+            
+            ctx.fillStyle = '#ff00ff';
+            enemyBullets.forEach(bullet => {
+                ctx.fillRect(bullet.x - bullet.width/2, bullet.y, bullet.width, bullet.height);
+            });
+            
+            // Draw enemies
+            enemies.forEach(enemy => {
+                ctx.fillStyle = enemy.color;
+                
+                ctx.save();
+                ctx.translate(enemy.x, enemy.y);
+                
+                if (enemy.type === 'boss') {
+                    // Boss alien
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillRect(-8, -5, 16, 3);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(-4, -2, 3, 3);
+                    ctx.fillRect(1, -2, 3, 3);
+                } else if (enemy.type === 'butterfly') {
+                    // Butterfly alien
+                    ctx.beginPath();
+                    ctx.ellipse(-6, 0, 8, 6, 0, 0, Math.PI * 2);
+                    ctx.ellipse(6, 0, 8, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(-2, -3, 4, 6);
+                } else {
+                    // Grunt alien
+                    ctx.fillRect(-10, -10, 20, 20);
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(-6, -4, 4, 4);
+                    ctx.fillRect(2, -4, 4, 4);
+                }
+                
+                ctx.restore();
+            });
+            
+            // Draw explosions
+            explosions.forEach(exp => {
+                ctx.fillStyle = exp.color;
+                ctx.globalAlpha = exp.life / 30;
+                ctx.fillRect(exp.x, exp.y, 3, 3);
+            });
+            ctx.globalAlpha = 1;
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+        
+        function updateLives() {
+            document.getElementById('lives').textContent = lives;
+        }
+        
+        function updateStage() {
+            document.getElementById('stage').textContent = stage;
+        }
+        
+        function stageClear() {
+            stageClearing = true;
+            gameRunning = false;
+            score += 1000;
+            updateScore();
+            document.getElementById('stageClear').classList.add('show');
+        }
+        
+        function nextStage() {
+            stage++;
+            updateStage();
+            stageClearing = false;
+            gameRunning = true;
+            
+            bullets = [];
+            enemyBullets = [];
+            explosions = [];
+            
+            createFormation();
+            spawnWave();
+            
+            document.getElementById('stageClear').classList.remove('show');
+            gameLoop();
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').classList.add('show');
+        }
+        
+        function restartGame() {
+            score = 0;
+            lives = 3;
+            stage = 1;
+            gameRunning = true;
+            stageClearing = false;
+            
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 80;
+            player.canShoot = true;
+            player.shootCooldown = 0;
+            
+            bullets = [];
+            enemyBullets = [];
+            enemies = [];
+            explosions = [];
+            
+            updateScore();
+            updateLives();
+            updateStage();
+            
+            createFormation();
+            spawnWave();
+            
+            document.getElementById('gameOver').classList.remove('show');
+            gameLoop();
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            updatePlayer();
+            updateBullets();
+            updateEnemies();
+            updateExplosions();
+            updateStars();
+            draw();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        createFormation();
+        spawnWave();
+        gameLoop();
+    </script>
+</body>
+</html>

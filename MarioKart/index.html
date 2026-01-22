@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mario Kart Racing</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+        }
+        #gameContainer {
+            background: #000;
+            border: 4px solid #FFD700;
+            position: relative;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+        }
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+        }
+        #hud {
+            font-size: 24px;
+            margin-bottom: 15px;
+            text-align: center;
+            background: rgba(0,0,0,0.8);
+            padding: 15px 30px;
+            border-radius: 10px;
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            border: 2px solid #FFD700;
+        }
+        .hud-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        .hud-label {
+            font-size: 14px;
+            color: #FFD700;
+        }
+        #instructions {
+            margin-top: 20px;
+            text-align: center;
+            max-width: 700px;
+            line-height: 1.8;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #FFD700;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 50px;
+            border: 5px solid #FFD700;
+            text-align: center;
+            font-size: 36px;
+            z-index: 10;
+            border-radius: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        #speedometer {
+            width: 200px;
+            height: 20px;
+            background: #333;
+            border: 2px solid #FFD700;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #speedBar {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #ffff00, #ff0000);
+            width: 0%;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+<body>
+    <div id="hud">
+        <div class="hud-item">
+            <div class="hud-label">LAP</div>
+            <div id="lap">1/3</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">POSITION</div>
+            <div id="position">1st</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">TIME</div>
+            <div id="time">0:00.0</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">SPEED</div>
+            <div id="speedometer">
+                <div id="speedBar"></div>
+            </div>
+        </div>
+    </div>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="gameOver" class="game-over hidden">
+            <div id="endMessage">RACE COMPLETE!</div>
+            <div style="font-size: 24px; margin-top: 20px;">Final Time: <span id="finalTime">0:00.0</span></div>
+            <div style="font-size: 18px; margin-top: 20px;">Press SPACE to restart</div>
+        </div>
+    </div>
+    <div id="instructions">
+        <strong>🏁 CONTROLS 🏁</strong><br>
+        <strong>Arrow Keys:</strong> Steer and Accelerate/Brake<br>
+        <strong>UP:</strong> Accelerate | <strong>DOWN:</strong> Brake/Reverse<br>
+        <strong>LEFT/RIGHT:</strong> Steer | <strong>SPACE:</strong> Use Item/Boost<br><br>
+        Race through 3 laps! Collect items, avoid obstacles, and beat your opponents!
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameTime = 0;
+        let currentLap = 1;
+        let maxLaps = 3;
+        let raceComplete = false;
+        let finalTime = 0;
+        
+        const player = {
+            x: 400,
+            y: 500,
+            width: 30,
+            height: 40,
+            angle: -Math.PI / 2,
+            speed: 0,
+            maxSpeed: 8,
+            acceleration: 0.2,
+            friction: 0.05,
+            turnSpeed: 0.08,
+            item: null,
+            boost: 0,
+            checkpoint: 0
+        };
+        
+        let keys = {};
+        let opponents = [];
+        let items = [];
+        let obstacles = [];
+        let particles = [];
+        let checkpoints = [];
+        
+        // Track definition (circular track)
+        const track = {
+            centerX: 400,
+            centerY: 300,
+            outerRadius: 280,
+            innerRadius: 180,
+            startLine: { x: 400, y: 520 }
+        };
+        
+        function initRace() {
+            gameTime = 0;
+            currentLap = 1;
+            raceComplete = false;
+            player.x = 400;
+            player.y = 500;
+            player.angle = -Math.PI / 2;
+            player.speed = 0;
+            player.checkpoint = 0;
+            player.item = null;
+            player.boost = 0;
+            
+            // Create checkpoints
+            checkpoints = [];
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+                checkpoints.push({
+                    x: track.centerX + Math.cos(angle) * ((track.outerRadius + track.innerRadius) / 2),
+                    y: track.centerY + Math.sin(angle) * ((track.outerRadius + track.innerRadius) / 2),
+                    angle: angle,
+                    radius: 30
+                });
+            }
+            
+            // Create opponents
+            opponents = [];
+            const colors = ['#FF0000', '#0000FF', '#FFFF00', '#00FF00', '#FF00FF'];
+            for (let i = 0; i < 5; i++) {
+                opponents.push({
+                    x: 380 + i * 15,
+                    y: 530 + i * 50,
+                    width: 30,
+                    height: 40,
+                    angle: -Math.PI / 2,
+                    speed: 4 + Math.random() * 2,
+                    targetAngle: 0,
+                    color: colors[i],
+                    checkpoint: 0,
+                    lap: 1
+                });
+            }
+            
+            // Create items on track
+            items = [];
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const radius = (track.outerRadius + track.innerRadius) / 2;
+                items.push({
+                    x: track.centerX + Math.cos(angle) * radius,
+                    y: track.centerY + Math.sin(angle) * radius,
+                    width: 25,
+                    height: 25,
+                    type: ['mushroom', 'star', 'shell'][Math.floor(Math.random() * 3)],
+                    collected: false,
+                    respawnTimer: 0
+                });
+            }
+            
+            // Create obstacles
+            obstacles = [];
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2 + Math.PI / 16;
+                const radius = track.innerRadius - 20;
+                obstacles.push({
+                    x: track.centerX + Math.cos(angle) * radius,
+                    y: track.centerY + Math.sin(angle) * radius,
+                    width: 30,
+                    height: 30,
+                    type: 'barrel'
+                });
+            }
+            
+            particles = [];
+            document.getElementById('gameOver').classList.add('hidden');
+        }
+        
+        initRace();
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === ' ' && raceComplete) {
+                initRace();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        function updatePlayer() {
+            // Acceleration and braking
+            if (keys['ArrowUp']) {
+                player.speed += player.acceleration;
+            } else if (keys['ArrowDown']) {
+                player.speed -= player.acceleration * 1.5;
+            } else {
+                player.speed *= (1 - player.friction);
+            }
+            
+            // Boost
+            if (player.boost > 0) {
+                player.speed = player.maxSpeed * 1.5;
+                player.boost--;
+                createParticle(player.x, player.y, '💨');
+            }
+            
+            // Speed limits
+            const maxSpeed = player.maxSpeed + (player.boost > 0 ? 4 : 0);
+            if (player.speed > maxSpeed) player.speed = maxSpeed;
+            if (player.speed < -maxSpeed / 2) player.speed = -maxSpeed / 2;
+            
+            // Steering
+            if (keys['ArrowLeft'] && Math.abs(player.speed) > 0.5) {
+                player.angle -= player.turnSpeed * (player.speed / player.maxSpeed);
+            }
+            if (keys['ArrowRight'] && Math.abs(player.speed) > 0.5) {
+                player.angle += player.turnSpeed * (player.speed / player.maxSpeed);
+            }
+            
+            // Use item
+            if (keys[' '] && player.item && !keys.itemUsed) {
+                useItem();
+                keys.itemUsed = true;
+            }
+            if (!keys[' ']) {
+                keys.itemUsed = false;
+            }
+            
+            // Move player
+            player.x += Math.cos(player.angle) * player.speed;
+            player.y += Math.sin(player.angle) * player.speed;
+            
+            // Check if on track
+            const distFromCenter = Math.sqrt(
+                Math.pow(player.x - track.centerX, 2) + 
+                Math.pow(player.y - track.centerY, 2)
+            );
+            
+            if (distFromCenter > track.outerRadius || distFromCenter < track.innerRadius) {
+                player.speed *= 0.5; // Slow down off-track
+                createParticle(player.x, player.y, '💥');
+            }
+            
+            // Check checkpoints
+            checkpoints.forEach((cp, i) => {
+                const dist = Math.sqrt(
+                    Math.pow(player.x - cp.x, 2) + 
+                    Math.pow(player.y - cp.y, 2)
+                );
+                
+                if (dist < cp.radius && i === player.checkpoint) {
+                    player.checkpoint++;
+                    if (player.checkpoint >= checkpoints.length) {
+                        player.checkpoint = 0;
+                        currentLap++;
+                        if (currentLap > maxLaps) {
+                            raceComplete = true;
+                            finalTime = gameTime;
+                            document.getElementById('finalTime').textContent = formatTime(finalTime);
+                            document.getElementById('gameOver').classList.remove('hidden');
+                        }
+                    }
+                }
+            });
+            
+            // Obstacle collision
+            obstacles.forEach(obs => {
+                if (checkCollision(player, obs)) {
+                    player.speed *= 0.3;
+                    createParticle(player.x, player.y, '💥');
+                }
+            });
+        }
+        
+        function useItem() {
+            if (player.item === 'mushroom') {
+                player.boost = 60;
+            } else if (player.item === 'star') {
+                player.boost = 120;
+            } else if (player.item === 'shell') {
+                // Find closest opponent ahead
+                let closest = null;
+                let minDist = Infinity;
+                opponents.forEach(opp => {
+                    const dist = Math.sqrt(
+                        Math.pow(opp.x - player.x, 2) + 
+                        Math.pow(opp.y - player.y, 2)
+                    );
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = opp;
+                    }
+                });
+                if (closest) {
+                    closest.speed *= 0.3;
+                    createParticle(closest.x, closest.y, '💥');
+                }
+            }
+            player.item = null;
+        }
+        
+        function updateOpponents() {
+            opponents.forEach(opp => {
+                // Simple AI: follow the track
+                const nextCheckpoint = checkpoints[opp.checkpoint % checkpoints.length];
+                const angleToCheckpoint = Math.atan2(
+                    nextCheckpoint.y - opp.y,
+                    nextCheckpoint.x - opp.x
+                );
+                
+                // Smooth steering
+                let angleDiff = angleToCheckpoint - opp.angle;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+                
+                opp.angle += angleDiff * 0.05;
+                
+                // Move
+                opp.x += Math.cos(opp.angle) * opp.speed;
+                opp.y += Math.sin(opp.angle) * opp.speed;
+                
+                // Check checkpoint
+                const dist = Math.sqrt(
+                    Math.pow(opp.x - nextCheckpoint.x, 2) + 
+                    Math.pow(opp.y - nextCheckpoint.y, 2)
+                );
+                
+                if (dist < nextCheckpoint.radius) {
+                    opp.checkpoint++;
+                    if (opp.checkpoint >= checkpoints.length) {
+                        opp.checkpoint = 0;
+                        opp.lap++;
+                    }
+                }
+            });
+        }
+        
+        function updateItems() {
+            items.forEach(item => {
+                if (item.collected) {
+                    item.respawnTimer++;
+                    if (item.respawnTimer > 300) {
+                        item.collected = false;
+                        item.respawnTimer = 0;
+                    }
+                } else if (checkCollision(player, item)) {
+                    item.collected = true;
+                    player.item = item.type;
+                    createParticle(item.x, item.y, '✨');
+                }
+            });
+        }
+        
+        function checkCollision(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+        
+        function createParticle(x, y, text) {
+            particles.push({
+                x: x,
+                y: y,
+                velocityX: (Math.random() - 0.5) * 4,
+                velocityY: (Math.random() - 0.5) * 4,
+                text: text,
+                life: 30,
+                scale: 1
+            });
+        }
+        
+        function updateParticles() {
+            particles.forEach((p, index) => {
+                p.x += p.velocityX;
+                p.y += p.velocityY;
+                p.velocityX *= 0.95;
+                p.velocityY *= 0.95;
+                p.life--;
+                p.scale *= 0.96;
+                if (p.life <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+        }
+        
+        function getPosition() {
+            let position = 1;
+            const playerProgress = (currentLap - 1) * checkpoints.length + player.checkpoint;
+            
+            opponents.forEach(opp => {
+                const oppProgress = (opp.lap - 1) * checkpoints.length + opp.checkpoint;
+                if (oppProgress > playerProgress) {
+                    position++;
+                }
+            });
+            
+            return position;
+        }
+        
+        function formatTime(frames) {
+            const totalSeconds = frames / 60;
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            const tenths = Math.floor((totalSeconds % 1) * 10);
+            return `${minutes}:${String(seconds).padStart(2, '0')}.${tenths}`;
+        }
+        
+        function draw() {
+            // Background
+            ctx.fillStyle = '#1a5f1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw track (grass outside)
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Track outer circle
+            ctx.fillStyle = '#404040';
+            ctx.beginPath();
+            ctx.arc(track.centerX, track.centerY, track.outerRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Track inner circle (grass)
+            ctx.fillStyle = '#228B22';
+            ctx.beginPath();
+            ctx.arc(track.centerX, track.centerY, track.innerRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Track markings
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.arc(track.centerX, track.centerY, (track.outerRadius + track.innerRadius) / 2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Start/finish line
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 10; i++) {
+                ctx.fillStyle = i % 2 === 0 ? '#fff' : '#000';
+                ctx.fillRect(
+                    track.centerX - 50 + i * 10,
+                    track.startLine.y - 5,
+                    10,
+                    10
+                );
+            }
+            
+            // Draw checkpoints (debug)
+            // checkpoints.forEach(cp => {
+            //     ctx.strokeStyle = 'rgba(255, 255, 0, 0.3)';
+            //     ctx.lineWidth = 2;
+            //     ctx.beginPath();
+            //     ctx.arc(cp.x, cp.y, cp.radius, 0, Math.PI * 2);
+            //     ctx.stroke();
+            // });
+            
+            // Draw obstacles
+            obstacles.forEach(obs => {
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(obs.x - obs.width/2, obs.y - obs.height/2, obs.width, obs.height);
+                ctx.strokeStyle = '#654321';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(obs.x - obs.width/2, obs.y - obs.height/2, obs.width, obs.height);
+            });
+            
+            // Draw items
+            items.forEach(item => {
+                if (!item.collected) {
+                    const emoji = item.type === 'mushroom' ? '🍄' : 
+                                item.type === 'star' ? '⭐' : '🐢';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(emoji, item.x, item.y + Math.sin(Date.now() / 200) * 5);
+                }
+            });
+            
+            // Draw opponents
+            opponents.forEach(opp => {
+                ctx.save();
+                ctx.translate(opp.x, opp.y);
+                ctx.rotate(opp.angle);
+                
+                ctx.fillStyle = opp.color;
+                ctx.fillRect(-opp.width/2, -opp.height/2, opp.width, opp.height);
+                
+                ctx.fillStyle = '#000';
+                ctx.fillRect(-opp.width/2 + 5, -opp.height/2 + 5, 8, 8);
+                ctx.fillRect(opp.width/2 - 13, -opp.height/2 + 5, 8, 8);
+                
+                ctx.restore();
+            });
+            
+            // Draw player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.angle);
+            
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(-player.width/2 + 2, -player.height/2 + 2, player.width, player.height);
+            
+            // Kart body
+            ctx.fillStyle = player.boost > 0 ? '#FFD700' : '#FF0000';
+            ctx.fillRect(-player.width/2, -player.height/2, player.width, player.height);
+            
+            // Windshield
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(-player.width/2 + 5, -player.height/2 + 5, player.width - 10, 12);
+            
+            // Wheels
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-player.width/2 - 3, -player.height/2 + 5, 6, 10);
+            ctx.fillRect(player.width/2 - 3, -player.height/2 + 5, 6, 10);
+            ctx.fillRect(-player.width/2 - 3, player.height/2 - 15, 6, 10);
+            ctx.fillRect(player.width/2 - 3, player.height/2 - 15, 6, 10);
+            
+            ctx.restore();
+            
+            // Draw particles
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.life / 30;
+                ctx.font = `${24 * p.scale}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.text, p.x, p.y);
+                ctx.restore();
+            });
+            
+            // Draw item box
+            if (player.item) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(10, 10, 60, 60);
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(10, 10, 60, 60);
+                
+                const emoji = player.item === 'mushroom' ? '🍄' : 
+                            player.item === 'star' ? '⭐' : '🐢';
+                ctx.font = '36px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(emoji, 40, 40);
+            }
+        }
+        
+        function updateHUD() {
+            document.getElementById('lap').textContent = `${Math.min(currentLap, maxLaps)}/${maxLaps}`;
+            
+            const position = getPosition();
+            const suffix = position === 1 ? 'st' : position === 2 ? 'nd' : position === 3 ? 'rd' : 'th';
+            document.getElementById('position').textContent = `${position}${suffix}`;
+            
+            document.getElementById('time').textContent = formatTime(gameTime);
+            
+            const speedPercent = Math.abs(player.speed) / player.maxSpeed * 100;
+            document.getElementById('speedBar').style.width = `${speedPercent}%`;
+        }
+        
+        function gameLoop() {
+            if (!raceComplete) {
+                updatePlayer();
+                updateOpponents();
+                updateItems();
+                updateParticles();
+                gameTime++;
+            }
+            
+            draw();
+            updateHUD();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>

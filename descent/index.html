@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Descent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            color: #0f0;
+            overflow: hidden;
+        }
+        
+        .game-container {
+            text-align: center;
+        }
+        
+        .title {
+            font-size: 42px;
+            color: #ff0000;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000;
+            letter-spacing: 12px;
+        }
+        
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #0f0;
+            width: 800px;
+            text-shadow: 0 0 5px #0f0;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border: 2px solid #0f0;
+        }
+        
+        .hud-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .shield-bar, .energy-bar {
+            width: 150px;
+            height: 15px;
+            border: 2px solid #0f0;
+            margin-top: 5px;
+            background: #000;
+            position: relative;
+        }
+        
+        .shield-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00aa00);
+            transition: width 0.3s;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffff00, #ff8800);
+            transition: width 0.3s;
+        }
+        
+        canvas {
+            border: 3px solid #ff0000;
+            background: #000;
+            display: block;
+            box-shadow: 0 0 30px #ff0000;
+        }
+        
+        .controls {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border: 2px solid #0f0;
+        }
+        
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px 60px;
+            border: 3px solid #ff0000;
+            font-size: 36px;
+            display: none;
+            color: #ff0000;
+            text-shadow: 0 0 15px #ff0000;
+            box-shadow: 0 0 30px #ff0000;
+        }
+        
+        .game-over.show {
+            display: block;
+        }
+        
+        .restart-btn {
+            margin-top: 20px;
+            padding: 12px 40px;
+            font-size: 20px;
+            background: transparent;
+            color: #ff0000;
+            border: 2px solid #ff0000;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            text-shadow: 0 0 5px #ff0000;
+        }
+        
+        .restart-btn:hover {
+            background: #ff0000;
+            color: #000;
+        }
+
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 2px solid #ff0000;
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        .crosshair::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            background: #ff0000;
+            border-radius: 50%;
+            box-shadow: 0 0 5px #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="title">DESCENT</div>
+        <div class="hud">
+            <div class="hud-item">
+                <div>SCORE: <span id="score">0</span></div>
+            </div>
+            <div class="hud-item">
+                <div>SHIELD</div>
+                <div class="shield-bar">
+                    <div class="shield-fill" id="shieldFill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="hud-item">
+                <div>ENERGY</div>
+                <div class="energy-bar">
+                    <div class="energy-fill" id="energyFill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="hud-item">
+                <div>LEVEL: <span id="level">1</span></div>
+            </div>
+        </div>
+        <div style="position: relative;">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <div class="crosshair"></div>
+        </div>
+        <div class="controls">
+            WASD: Move | QE: Roll | Arrow Keys: Look | SPACE: Fire | SHIFT: Boost
+        </div>
+    </div>
+    
+    <div class="game-over" id="gameOver">
+        <div>DESTROYED</div>
+        <div style="font-size: 22px; margin-top: 15px;">Final Score: <span id="finalScore">0</span></div>
+        <button class="restart-btn" onclick="restartGame()">RESTART</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let score = 0;
+        let level = 1;
+        let shield = 100;
+        let energy = 100;
+        let gameRunning = true;
+        
+        // Player ship
+        const player = {
+            x: 0,
+            y: 0,
+            z: 0,
+            rotX: 0,
+            rotY: 0,
+            rotZ: 0,
+            velX: 0,
+            velY: 0,
+            velZ: 0.2,
+            speed: 0.2
+        };
+        
+        // Tunnel segments
+        let tunnelSegments = [];
+        const segmentLength = 20;
+        const segmentWidth = 15;
+        
+        // Enemies
+        let enemies = [];
+        
+        // Projectiles
+        let projectiles = [];
+        let enemyProjectiles = [];
+        
+        // Particles
+        let particles = [];
+        
+        // Keys
+        const keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (e.key === ' ' && gameRunning) {
+                e.preventDefault();
+                shootProjectile();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        function generateTunnel() {
+            let offsetX = 0;
+            let offsetY = 0;
+            
+            for (let i = 0; i < 100; i++) {
+                const z = i * segmentLength;
+                
+                // Add some curves
+                if (Math.random() < 0.1) {
+                    offsetX += (Math.random() - 0.5) * 5;
+                    offsetY += (Math.random() - 0.5) * 5;
+                }
+                
+                tunnelSegments.push({
+                    z: z,
+                    x: offsetX,
+                    y: offsetY,
+                    width: segmentWidth
+                });
+            }
+        }
+        
+        function createEnemy(z) {
+            enemies.push({
+                x: (Math.random() - 0.5) * segmentWidth * 0.6,
+                y: (Math.random() - 0.5) * segmentWidth * 0.6,
+                z: z,
+                health: 3,
+                shootTimer: 0
+            });
+        }
+        
+        function spawnEnemies() {
+            const spawnZ = player.z + 100;
+            
+            if (Math.random() < 0.02 * level) {
+                createEnemy(spawnZ);
+            }
+        }
+        
+        function shootProjectile() {
+            if (energy < 10) return;
+            
+            energy -= 10;
+            updateEnergy();
+            
+            projectiles.push({
+                x: player.x,
+                y: player.y,
+                z: player.z + 5,
+                velX: Math.sin(player.rotY) * 2,
+                velY: -Math.sin(player.rotX) * 2,
+                velZ: 3,
+                life: 100
+            });
+        }
+        
+        function updatePlayer() {
+            // Movement
+            if (keys['w'] || keys['W']) player.velY -= 0.02;
+            if (keys['s'] || keys['S']) player.velY += 0.02;
+            if (keys['a'] || keys['A']) player.velX -= 0.02;
+            if (keys['d'] || keys['D']) player.velX += 0.02;
+            
+            // Rotation
+            if (keys['ArrowUp']) player.rotX -= 0.03;
+            if (keys['ArrowDown']) player.rotX += 0.03;
+            if (keys['ArrowLeft']) player.rotY -= 0.03;
+            if (keys['ArrowRight']) player.rotY += 0.03;
+            if (keys['q'] || keys['Q']) player.rotZ -= 0.03;
+            if (keys['e'] || keys['E']) player.rotZ += 0.03;
+            
+            // Speed boost
+            if (keys['Shift'] && energy > 0) {
+                player.velZ = 0.5;
+                energy -= 0.5;
+                updateEnergy();
+            } else {
+                player.velZ = 0.2;
+            }
+            
+            // Apply velocity with damping
+            player.velX *= 0.95;
+            player.velY *= 0.95;
+            
+            player.x += player.velX;
+            player.y += player.velY;
+            player.z += player.velZ;
+            
+            // Rotation damping
+            player.rotX *= 0.98;
+            player.rotY *= 0.98;
+            player.rotZ *= 0.98;
+            
+            // Check tunnel collision
+            const currentSegment = tunnelSegments.find(seg => 
+                Math.abs(seg.z - player.z) < segmentLength / 2
+            );
+            
+            if (currentSegment) {
+                const distFromCenter = Math.sqrt(
+                    Math.pow(player.x - currentSegment.x, 2) + 
+                    Math.pow(player.y - currentSegment.y, 2)
+                );
+                
+                if (distFromCenter > currentSegment.width - 2) {
+                    shield -= 0.5;
+                    updateShield();
+                    
+                    // Push back
+                    const angle = Math.atan2(player.y - currentSegment.y, player.x - currentSegment.x);
+                    player.x = currentSegment.x + Math.cos(angle) * (currentSegment.width - 2);
+                    player.y = currentSegment.y + Math.sin(angle) * (currentSegment.width - 2);
+                    
+                    if (shield <= 0) {
+                        gameOver();
+                    }
+                }
+            }
+            
+            // Regenerate energy slowly
+            if (energy < 100) {
+                energy += 0.1;
+                updateEnergy();
+            }
+        }
+        
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const proj = projectiles[i];
+                
+                proj.x += proj.velX;
+                proj.y += proj.velY;
+                proj.z += proj.velZ;
+                proj.life--;
+                
+                if (proj.life <= 0 || proj.z > player.z + 150) {
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+                
+                // Check enemy hits
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    const dist = Math.sqrt(
+                        Math.pow(proj.x - enemy.x, 2) +
+                        Math.pow(proj.y - enemy.y, 2) +
+                        Math.pow(proj.z - enemy.z, 2)
+                    );
+                    
+                    if (dist < 2) {
+                        enemy.health--;
+                        projectiles.splice(i, 1);
+                        
+                        if (enemy.health <= 0) {
+                            score += 100;
+                            updateScore();
+                            enemies.splice(j, 1);
+                            
+                            // Explosion
+                            for (let k = 0; k < 20; k++) {
+                                particles.push({
+                                    x: enemy.x,
+                                    y: enemy.y,
+                                    z: enemy.z,
+                                    velX: (Math.random() - 0.5) * 0.5,
+                                    velY: (Math.random() - 0.5) * 0.5,
+                                    velZ: (Math.random() - 0.5) * 0.5,
+                                    life: 30,
+                                    color: '#ff6600'
+                                });
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // Enemy projectiles
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+                const proj = enemyProjectiles[i];
+                
+                proj.x += proj.velX;
+                proj.y += proj.velY;
+                proj.z += proj.velZ;
+                proj.life--;
+                
+                if (proj.life <= 0 || proj.z < player.z - 20) {
+                    enemyProjectiles.splice(i, 1);
+                    continue;
+                }
+                
+                // Check player hit
+                const dist = Math.sqrt(
+                    Math.pow(proj.x - player.x, 2) +
+                    Math.pow(proj.y - player.y, 2) +
+                    Math.pow(proj.z - player.z, 2)
+                );
+                
+                if (dist < 2) {
+                    shield -= 10;
+                    updateShield();
+                    enemyProjectiles.splice(i, 1);
+                    
+                    if (shield <= 0) {
+                        gameOver();
+                    }
+                }
+            }
+        }
+        
+        function updateEnemies() {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                
+                // Remove if behind player
+                if (enemy.z < player.z - 20) {
+                    enemies.splice(i, 1);
+                    continue;
+                }
+                
+                // Shoot at player
+                enemy.shootTimer++;
+                if (enemy.shootTimer > 60 && enemy.z - player.z < 50) {
+                    enemy.shootTimer = 0;
+                    
+                    const dx = player.x - enemy.x;
+                    const dy = player.y - enemy.y;
+                    const dz = player.z - enemy.z;
+                    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    
+                    enemyProjectiles.push({
+                        x: enemy.x,
+                        y: enemy.y,
+                        z: enemy.z,
+                        velX: dx / dist * 0.3,
+                        velY: dy / dist * 0.3,
+                        velZ: dz / dist * 0.3,
+                        life: 100
+                    });
+                }
+            }
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                
+                p.x += p.velX;
+                p.y += p.velY;
+                p.z += p.velZ;
+                p.life--;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function project(x, y, z) {
+            const relZ = z - player.z;
+            if (relZ <= 0) return null;
+            
+            const fov = 400;
+            const scale = fov / relZ;
+            
+            const screenX = canvas.width / 2 + (x - player.x) * scale;
+            const screenY = canvas.height / 2 + (y - player.y) * scale;
+            
+            return { x: screenX, y: screenY, scale: scale };
+        }
+        
+        function draw() {
+            // Clear with motion blur effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw tunnel
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            
+            for (let i = 0; i < tunnelSegments.length - 1; i++) {
+                const seg = tunnelSegments[i];
+                const nextSeg = tunnelSegments[i + 1];
+                
+                if (seg.z < player.z - 20 || seg.z > player.z + 200) continue;
+                
+                const points = [];
+                const nextPoints = [];
+                
+                for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                    const x1 = seg.x + Math.cos(angle) * seg.width;
+                    const y1 = seg.y + Math.sin(angle) * seg.width;
+                    const x2 = nextSeg.x + Math.cos(angle) * nextSeg.width;
+                    const y2 = nextSeg.y + Math.sin(angle) * nextSeg.width;
+                    
+                    const p1 = project(x1, y1, seg.z);
+                    const p2 = project(x2, y2, nextSeg.z);
+                    
+                    if (p1) points.push(p1);
+                    if (p2) nextPoints.push(p2);
+                }
+                
+                // Draw tunnel segments
+                ctx.globalAlpha = Math.max(0.2, 1 - (seg.z - player.z) / 100);
+                
+                for (let j = 0; j < points.length; j++) {
+                    const p1 = points[j];
+                    const p2 = nextPoints[j];
+                    
+                    if (p1 && p2) {
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            
+            ctx.globalAlpha = 1;
+            
+            // Draw enemies
+            ctx.fillStyle = '#ff0000';
+            enemies.forEach(enemy => {
+                const pos = project(enemy.x, enemy.y, enemy.z);
+                if (pos) {
+                    const size = pos.scale * 2;
+                    ctx.fillRect(pos.x - size/2, pos.y - size/2, size, size);
+                    
+                    // Draw enemy glow
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.fillRect(pos.x - size/2, pos.y - size/2, size, size);
+                    ctx.shadowBlur = 0;
+                }
+            });
+            
+            // Draw projectiles
+            ctx.fillStyle = '#ffff00';
+            projectiles.forEach(proj => {
+                const pos = project(proj.x, proj.y, proj.z);
+                if (pos) {
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            // Draw enemy projectiles
+            ctx.fillStyle = '#ff00ff';
+            enemyProjectiles.forEach(proj => {
+                const pos = project(proj.x, proj.y, proj.z);
+                if (pos) {
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            // Draw particles
+            particles.forEach(p => {
+                const pos = project(p.x, p.y, p.z);
+                if (pos) {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life / 30;
+                    ctx.fillRect(pos.x, pos.y, 2, 2);
+                }
+            });
+            ctx.globalAlpha = 1;
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+            
+            // Level up every 1000 points
+            const newLevel = Math.floor(score / 1000) + 1;
+            if (newLevel > level) {
+                level = newLevel;
+                document.getElementById('level').textContent = level;
+            }
+        }
+        
+        function updateShield() {
+            shield = Math.max(0, Math.min(100, shield));
+            document.getElementById('shieldFill').style.width = shield + '%';
+        }
+        
+        function updateEnergy() {
+            energy = Math.max(0, Math.min(100, energy));
+            document.getElementById('energyFill').style.width = energy + '%';
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').classList.add('show');
+        }
+        
+        function restartGame() {
+            score = 0;
+            level = 1;
+            shield = 100;
+            energy = 100;
+            gameRunning = true;
+            
+            player.x = 0;
+            player.y = 0;
+            player.z = 0;
+            player.rotX = 0;
+            player.rotY = 0;
+            player.rotZ = 0;
+            player.velX = 0;
+            player.velY = 0;
+            player.velZ = 0.2;
+            
+            tunnelSegments = [];
+            enemies = [];
+            projectiles = [];
+            enemyProjectiles = [];
+            particles = [];
+            
+            generateTunnel();
+            updateScore();
+            updateShield();
+            updateEnergy();
+            
+            document.getElementById('gameOver').classList.remove('show');
+            gameLoop();
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            updatePlayer();
+            updateProjectiles();
+            updateEnemies();
+            updateParticles();
+            spawnEnemies();
+            
+            // Add new tunnel segments
+            const lastSegment = tunnelSegments[tunnelSegments.length - 1];
+            if (lastSegment && lastSegment.z < player.z + 200) {
+                const newZ = lastSegment.z + segmentLength;
+                tunnelSegments.push({
+                    z: newZ,
+                    x: lastSegment.x + (Math.random() - 0.5) * 3,
+                    y: lastSegment.y + (Math.random() - 0.5) * 3,
+                    width: segmentWidth
+                });
+            }
+            
+            // Remove old segments
+            tunnelSegments = tunnelSegments.filter(seg => seg.z > player.z - 50);
+            
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        generateTunnel();
+        gameLoop();
+    </script>
+</body>
+</html>
